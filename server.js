@@ -30,6 +30,11 @@ app.get('/health', (_req, res) => {
 	res.status(200).json({ status: 'ok' });
 });
 
+// Redirect site root to the dashboard UI
+app.get('/', (_req, res) => {
+  res.redirect('/public/');
+});
+
 // 404 for any route not handled above
 app.use((req, res, _next) => {
 	res.status(404).json({ error: 'Not found' });

@@ -2,6 +2,9 @@ import fs from 'fs/promises';
 import axios from 'axios';
 import Resume from '../models/Resume.js';
 
+// Helpers extract candidate metadata from raw PDF text.
+// These are heuristic and intentionally conservative to avoid noisy results.
+
 function extractCandidateName(text) {
   const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
   if (lines.length > 0) {
@@ -36,6 +39,7 @@ function extractSkills(text) {
   return [];
 }
 
+// Accepts a PDF upload, extracts text, derives basic fields, and stores a Resume
 export async function uploadResume(req, res) {
   try {
     const file = req.file;
@@ -78,6 +82,7 @@ export async function uploadResume(req, res) {
   }
 }
 
+// Calls an external scoring endpoint to produce a matchScore and justification
 export async function scoreResume(req, res) {
   try {
     const { resumeId, jobDescription } = req.body || {};
@@ -124,6 +129,7 @@ export async function scoreResume(req, res) {
   }
 }
 
+// List all resumes sorted by score (desc) and recency
 export async function getAllResumes(_req, res) {
   try {
     const items = await Resume.find({}).sort({ matchScore: -1, createdAt: -1 });
@@ -133,6 +139,7 @@ export async function getAllResumes(_req, res) {
   }
 }
 
+// Fetch a single resume by ID
 export async function getResumeById(req, res) {
   try {
     const { id } = req.params;
@@ -144,6 +151,7 @@ export async function getResumeById(req, res) {
   }
 }
 
+// Return resumes above a threshold (>= 7)
 export async function getShortlisted(_req, res) {
   try {
     const items = await Resume.find({ matchScore: { $gte: 7 } }).sort({ matchScore: -1, createdAt: -1 });
@@ -153,6 +161,7 @@ export async function getShortlisted(_req, res) {
   }
 }
 
+// Delete a resume by ID (and optionally remove associated file when stored)
 export async function deleteResume(req, res) {
   try {
     const { id } = req.params;

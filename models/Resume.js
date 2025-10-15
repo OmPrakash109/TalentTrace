@@ -1,5 +1,8 @@
 import mongoose from 'mongoose';
 
+// Schema representing a parsed resume and its scoring metadata.
+// Keep fields flexible; downstream processes may enrich with structured experience/education later.
+
 const ResumeSchema = new mongoose.Schema(
   {
     candidateName: { type: String, required: false },

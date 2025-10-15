@@ -7,7 +7,7 @@ router.get('/status', (_req, res) => {
   res.json({ service: 'talentrace', status: 'running' });
 });
 
-router.use('/resumes', resumeRoutes);
+router.use('/', resumeRoutes);
 
 export default router;
 

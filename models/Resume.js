@@ -2,13 +2,17 @@ import mongoose from 'mongoose';
 
 const ResumeSchema = new mongoose.Schema(
   {
-    originalFilename: { type: String, required: true },
-    storedFilename: { type: String, required: true },
-    textContent: { type: String, required: false },
-    parsedAt: { type: Date, required: false },
-    analysis: { type: Object, required: false },
-    mimeType: { type: String, required: true },
-    sizeBytes: { type: Number, required: true }
+    candidateName: { type: String, required: false },
+    email: { type: String, required: false, index: true },
+    phone: { type: String, required: false },
+    skills: { type: [String], required: false, default: [] },
+    experience: { type: String, required: false },
+    education: { type: String, required: false },
+    pdfText: { type: String, required: false },
+    fileName: { type: String, required: true },
+    matchScore: { type: Number, required: false, min: 0, max: 100 },
+    justification: { type: String, required: false },
+    uploadDate: { type: Date, required: true, default: Date.now }
   },
   { timestamps: true }
 );

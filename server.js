@@ -3,7 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { connectToDatabase } from './config/db.js';
+import { connectDB } from './config/db.js';
 import apiRouter from './routes/index.js';
 
 dotenv.config();
@@ -34,7 +34,7 @@ const PORT = process.env.PORT || 5000;
 
 // Attempt DB connection but start server regardless
 (async () => {
-  await connectToDatabase();
+  await connectDB();
   app.listen(PORT, () => {
     // eslint-disable-next-line no-console
     console.log(`TalentTrace server running on port ${PORT}`);

@@ -3,7 +3,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import { uploadResume, scoreResume } from '../controllers/resumeController.js';
+import { uploadResume, scoreResume, getAllResumes, getResumeById, getShortlisted, deleteResume } from '../controllers/resumeController.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -31,6 +31,10 @@ const router = Router();
 
 router.post('/upload-resume', upload.single('resume'), uploadResume);
 router.post('/score-resume', scoreResume);
+router.get('/resumes', getAllResumes);
+router.get('/resumes/:id', getResumeById);
+router.get('/shortlisted', getShortlisted);
+router.delete('/resumes/:id', deleteResume);
 
 export default router;
 

@@ -124,4 +124,50 @@ export async function scoreResume(req, res) {
   }
 }
 
+export async function getAllResumes(_req, res) {
+  try {
+    const items = await Resume.find({}).sort({ matchScore: -1, createdAt: -1 });
+    return res.status(200).json(items);
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to fetch resumes' });
+  }
+}
+
+export async function getResumeById(req, res) {
+  try {
+    const { id } = req.params;
+    const item = await Resume.findById(id);
+    if (!item) return res.status(404).json({ error: 'Resume not found' });
+    return res.status(200).json(item);
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to fetch resume' });
+  }
+}
+
+export async function getShortlisted(_req, res) {
+  try {
+    const items = await Resume.find({ matchScore: { $gte: 7 } }).sort({ matchScore: -1, createdAt: -1 });
+    return res.status(200).json(items);
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to fetch shortlisted resumes' });
+  }
+}
+
+export async function deleteResume(req, res) {
+  try {
+    const { id } = req.params;
+    const item = await Resume.findById(id);
+    if (!item) return res.status(404).json({ error: 'Resume not found' });
+
+    // Attempt to remove associated PDF if stored name is recoverable
+    // We stored only original fileName earlier; if you later add stored filename, delete here.
+    // Keeping deletion best-effort so API remains robust.
+
+    await item.deleteOne();
+    return res.status(200).json({ message: 'Resume deleted' });
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to delete resume' });
+  }
+}
+
 

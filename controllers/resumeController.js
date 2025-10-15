@@ -1,4 +1,5 @@
 import fs from 'fs/promises';
+import axios from 'axios';
 import Resume from '../models/Resume.js';
 
 function extractCandidateName(text) {
@@ -74,6 +75,52 @@ export async function uploadResume(req, res) {
     return res.status(201).json({ id: resume._id, message: 'Resume uploaded and parsed successfully' });
   } catch (error) {
     return res.status(500).json({ error: 'Failed to process resume' });
+  }
+}
+
+export async function scoreResume(req, res) {
+  try {
+    const { resumeId, jobDescription } = req.body || {};
+
+    if (!resumeId || !jobDescription || typeof jobDescription !== 'string' || !jobDescription.trim()) {
+      return res.status(400).json({ error: 'resumeId and jobDescription are required' });
+    }
+
+    const resume = await Resume.findById(resumeId);
+    if (!resume) {
+      return res.status(404).json({ error: 'Resume not found' });
+    }
+
+    const resumeText = resume.pdfText || '';
+    if (!resumeText) {
+      return res.status(400).json({ error: 'Resume has no extracted text to score' });
+    }
+
+    const endpoint = process.env.LLM_ENDPOINT;
+    if (!endpoint) {
+      return res.status(500).json({ error: 'LLM_ENDPOINT is not configured on the server' });
+    }
+
+    const response = await axios.post(endpoint, {
+      resumeText,
+      jobDescription
+    }, {
+      headers: { 'Content-Type': 'application/json' },
+      timeout: 30000
+    });
+
+    const { score, justification } = response?.data || {};
+    if (typeof score !== 'number' || score < 0 || score > 100 || typeof justification !== 'string') {
+      return res.status(502).json({ error: 'Invalid response from scoring service' });
+    }
+
+    resume.matchScore = score;
+    resume.justification = justification;
+    await resume.save();
+
+    return res.status(200).json(resume);
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to score resume' });
   }
 }
 

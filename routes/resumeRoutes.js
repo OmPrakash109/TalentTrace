@@ -3,7 +3,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import { uploadResume } from '../controllers/resumeController.js';
+import { uploadResume, scoreResume } from '../controllers/resumeController.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -30,6 +30,7 @@ const upload = multer({
 const router = Router();
 
 router.post('/upload-resume', upload.single('resume'), uploadResume);
+router.post('/score-resume', scoreResume);
 
 export default router;
 

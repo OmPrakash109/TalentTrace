@@ -119,61 +119,70 @@ export async function scoreResume(req, res) {
 
     const endpoint = process.env.LLM_ENDPOINT;
     let score, justification;
+    let source = 'unknown';
 
-    // Preferred path: Gemini via GOOGLE_API_KEY
+    // Skip Gemini for now - use improved heuristic scoring directly
     const googleApiKey = process.env.GOOGLE_API_KEY;
-    if (googleApiKey) {
-      try {
-        const genAI = new GoogleGenerativeAI(googleApiKey);
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-        const prompt = `You are a precise hiring assistant. Score how well the RESUME matches the JOB DESCRIPTION.
-Return ONLY valid minified JSON: {"score":0-100,"justification":"<short reason>"}.
-
-RESUME:\n${resumeText}\n\nJOB DESCRIPTION:\n${jobDescription}`;
-        const resp = await model.generateContent(prompt);
-        const raw = resp?.response?.text?.() || '';
-        try {
-          const parsed = JSON.parse(raw);
-          score = parsed?.score;
-          justification = parsed?.justification;
-        } catch {
-          // Try to extract JSON substring
-          const match = raw.match(/\{[\s\S]*\}/);
-          if (match) {
-            const parsed = JSON.parse(match[0]);
-            score = parsed?.score;
-            justification = parsed?.justification;
-          }
-        }
-      } catch (e) {
-        // eslint-disable-next-line no-console
-        console.warn('Gemini scoring failed, falling back', e?.message || e);
-      }
-    }
+    // eslint-disable-next-line no-console
+    console.log('Using improved heuristic scoring (Gemini API not accessible)');
 
     // Secondary path: external endpoint if configured
     if ((score == null || justification == null) && endpoint) {
       try {
         const response = await axios.post(endpoint, { resumeText, jobDescription }, { headers: { 'Content-Type': 'application/json' }, timeout: 30000 });
         ({ score, justification } = response?.data || {});
+        if (typeof score === 'number' && typeof justification === 'string') {
+          source = 'endpoint';
+        }
       } catch (e) {
         // eslint-disable-next-line no-console
         console.warn('External LLM endpoint failed, falling back', e?.message || e);
       }
     }
 
-    // Final fallback: heuristic keyword overlap
+    // Final fallback: improved heuristic scoring
     if (score == null || justification == null) {
       const jd = (jobDescription || '').toLowerCase();
       const resumeLower = (resumeText || '').toLowerCase();
-      const keywords = Array.from(new Set(jd
-        .split(/[^a-z0-9+#.]+/i)
-        .filter(Boolean)
-        .filter(w => w.length >= 3)));
-      const hits = keywords.filter(k => resumeLower.includes(k));
-      const ratio = keywords.length ? hits.length / keywords.length : 0;
-      score = Math.round(ratio * 100);
-      justification = `Heuristic score based on keyword overlap: ${hits.length}/${keywords.length} matches.`;
+      
+      // Extract key skills/technologies from JD
+      const techKeywords = ['javascript', 'python', 'java', 'react', 'node', 'mongodb', 'sql', 'aws', 'azure', 'docker', 'kubernetes', 'git', 'html', 'css', 'express', 'angular', 'vue', 'typescript', 'php', 'c++', 'c#', '.net', 'spring', 'django', 'flask', 'mysql', 'postgresql', 'redis', 'elasticsearch', 'kafka', 'microservices', 'api', 'rest', 'graphql', 'machine learning', 'ai', 'data science', 'analytics', 'cybersecurity', 'automation', 'cloud', 'devops', 'agile', 'scrum'];
+      
+      // Extract experience indicators
+      const expKeywords = ['senior', 'lead', 'principal', 'architect', 'manager', 'director', 'years', 'experience', 'expert', 'advanced', 'professional'];
+      
+      // Count matches
+      const techMatches = techKeywords.filter(tech => 
+        jd.includes(tech) && resumeLower.includes(tech)
+      ).length;
+      
+      const expMatches = expKeywords.filter(exp => 
+        jd.includes(exp) && resumeLower.includes(exp)
+      ).length;
+      
+      // Calculate score based on matches and resume quality indicators
+      let baseScore = 0;
+      
+      // Technical skills match (0-60 points)
+      const totalTechInJD = techKeywords.filter(tech => jd.includes(tech)).length;
+      if (totalTechInJD > 0) {
+        baseScore += Math.round((techMatches / totalTechInJD) * 60);
+      }
+      
+      // Experience level match (0-25 points)
+      const totalExpInJD = expKeywords.filter(exp => jd.includes(exp)).length;
+      if (totalExpInJD > 0) {
+        baseScore += Math.round((expMatches / totalExpInJD) * 25);
+      }
+      
+      // Resume quality indicators (0-15 points)
+      if (resumeLower.includes('bachelor') || resumeLower.includes('master') || resumeLower.includes('degree')) baseScore += 5;
+      if (resumeLower.includes('project') || resumeLower.includes('portfolio')) baseScore += 5;
+      if (resumeLower.includes('certification') || resumeLower.includes('certified')) baseScore += 5;
+      
+      score = Math.min(baseScore, 100);
+      justification = `Heuristic analysis: ${techMatches}/${totalTechInJD} technical skills match, ${expMatches}/${totalExpInJD} experience indicators match. Resume shows ${baseScore >= 70 ? 'strong' : baseScore >= 40 ? 'moderate' : 'basic'} alignment with job requirements.`;
+      source = 'heuristic';
     }
 
     if (typeof score !== 'number' || score < 0 || score > 100 || typeof justification !== 'string') {
@@ -181,7 +190,7 @@ RESUME:\n${resumeText}\n\nJOB DESCRIPTION:\n${jobDescription}`;
     }
 
     resume.matchScore = score;
-    resume.justification = justification;
+    resume.justification = `${justification}${source ? ` (source: ${source})` : ''}`;
     await resume.save();
 
     return res.status(200).json(resume);

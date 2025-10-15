@@ -50,11 +50,26 @@ export async function uploadResume(req, res) {
       return res.status(400).json({ error: 'Only PDF files are allowed' });
     }
 
-    const mod = await import('pdf-parse');
-    const pdfParse = mod.default || mod;
     const fileBuffer = await fs.readFile(file.path);
-    const pdfData = await pdfParse(fileBuffer);
-    const pdfText = (pdfData.text || '').trim();
+
+    // Try primary parser, then fall back to an alternate build if needed
+    let pdfText = '';
+    try {
+      const mod = await import('pdf-parse');
+      const pdfParse = mod.default || mod;
+      const pdfData = await pdfParse(fileBuffer);
+      pdfText = (pdfData.text || '').trim();
+    } catch (primaryErr) {
+      try {
+        const modAlt = await import('pdf-parse-fixed');
+        const pdfParseAlt = modAlt.default || modAlt;
+        const pdfDataAlt = await pdfParseAlt(fileBuffer);
+        pdfText = (pdfDataAlt.text || '').trim();
+      } catch (fallbackErr) {
+        // eslint-disable-next-line no-console
+        console.error('PDF parsing failed', { primary: primaryErr?.message, fallback: fallbackErr?.message });
+      }
+    }
 
     if (!pdfText) {
       return res.status(422).json({ error: 'Unable to extract text from PDF' });

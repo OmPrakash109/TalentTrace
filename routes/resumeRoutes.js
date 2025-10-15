@@ -3,7 +3,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import { uploadResume, listResumes } from '../controllers/resumeController.js';
+import { uploadResume } from '../controllers/resumeController.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -15,19 +15,21 @@ if (!fs.existsSync(uploadDir)) {
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, uploadDir),
-  filename: (_req, file, cb) => {
-    const timestamp = Date.now();
-    const safeName = file.originalname.replace(/[^a-zA-Z0-9_.-]/g, '_');
-    cb(null, `${timestamp}-${safeName}`);
-  }
+  filename: (_req, file, cb) => cb(null, `${Date.now()}-${file.originalname.replace(/[^a-zA-Z0-9_.-]/g, '_')}`)
 });
 
-const upload = multer({ storage });
+const upload = multer({
+  storage,
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype === 'application/pdf' || /\.pdf$/i.test(file.originalname)) return cb(null, true);
+    return cb(new Error('Only PDF files are allowed'));
+  },
+  limits: { fileSize: 5 * 1024 * 1024 }
+});
 
 const router = Router();
 
-router.get('/', listResumes);
-router.post('/upload', upload.single('resume'), uploadResume);
+router.post('/upload-resume', upload.single('resume'), uploadResume);
 
 export default router;
 

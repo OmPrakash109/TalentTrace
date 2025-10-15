@@ -1,6 +1,7 @@
 import fs from 'fs/promises';
 import axios from 'axios';
 import Resume from '../models/Resume.js';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // Helpers extract candidate metadata from raw PDF text.
 // These are heuristic and intentionally conservative to avoid noisy results.
@@ -118,8 +119,51 @@ export async function scoreResume(req, res) {
 
     const endpoint = process.env.LLM_ENDPOINT;
     let score, justification;
-    if (!endpoint) {
-      // Heuristic fallback: quick keyword-overlap scoring (0-100)
+
+    // Preferred path: Gemini via GOOGLE_API_KEY
+    const googleApiKey = process.env.GOOGLE_API_KEY;
+    if (googleApiKey) {
+      try {
+        const genAI = new GoogleGenerativeAI(googleApiKey);
+        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        const prompt = `You are a precise hiring assistant. Score how well the RESUME matches the JOB DESCRIPTION.
+Return ONLY valid minified JSON: {"score":0-100,"justification":"<short reason>"}.
+
+RESUME:\n${resumeText}\n\nJOB DESCRIPTION:\n${jobDescription}`;
+        const resp = await model.generateContent(prompt);
+        const raw = resp?.response?.text?.() || '';
+        try {
+          const parsed = JSON.parse(raw);
+          score = parsed?.score;
+          justification = parsed?.justification;
+        } catch {
+          // Try to extract JSON substring
+          const match = raw.match(/\{[\s\S]*\}/);
+          if (match) {
+            const parsed = JSON.parse(match[0]);
+            score = parsed?.score;
+            justification = parsed?.justification;
+          }
+        }
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.warn('Gemini scoring failed, falling back', e?.message || e);
+      }
+    }
+
+    // Secondary path: external endpoint if configured
+    if ((score == null || justification == null) && endpoint) {
+      try {
+        const response = await axios.post(endpoint, { resumeText, jobDescription }, { headers: { 'Content-Type': 'application/json' }, timeout: 30000 });
+        ({ score, justification } = response?.data || {});
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.warn('External LLM endpoint failed, falling back', e?.message || e);
+      }
+    }
+
+    // Final fallback: heuristic keyword overlap
+    if (score == null || justification == null) {
       const jd = (jobDescription || '').toLowerCase();
       const resumeLower = (resumeText || '').toLowerCase();
       const keywords = Array.from(new Set(jd
@@ -130,15 +174,6 @@ export async function scoreResume(req, res) {
       const ratio = keywords.length ? hits.length / keywords.length : 0;
       score = Math.round(ratio * 100);
       justification = `Heuristic score based on keyword overlap: ${hits.length}/${keywords.length} matches.`;
-    } else {
-      const response = await axios.post(endpoint, {
-        resumeText,
-        jobDescription
-      }, {
-        headers: { 'Content-Type': 'application/json' },
-        timeout: 30000
-      });
-      ({ score, justification } = response?.data || {});
     }
 
     if (typeof score !== 'number' || score < 0 || score > 100 || typeof justification !== 'string') {

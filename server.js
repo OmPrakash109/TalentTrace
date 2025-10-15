@@ -5,7 +5,6 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { connectDB } from './config/db.js';
 import apiRouter from './routes/index.js';
-import resumeRoutes from './routes/resumeRoutes.js';
 
 dotenv.config();
 
@@ -25,22 +24,10 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Routes
 app.use('/api', apiRouter);
-app.use('/api', resumeRoutes);
 
 // Healthcheck
 app.get('/health', (_req, res) => {
   res.status(200).json({ status: 'ok' });
-});
-
-// 404 handler
-app.use((req, res, _next) => {
-  res.status(404).json({ error: 'Not found' });
-});
-
-// Error handler
-// eslint-disable-next-line no-unused-vars
-app.use((err, _req, res, _next) => {
-  res.status(500).json({ error: err?.message || 'Internal Server Error' });
 });
 
 const PORT = process.env.PORT || 5000;

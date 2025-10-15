@@ -117,19 +117,30 @@ export async function scoreResume(req, res) {
     }
 
     const endpoint = process.env.LLM_ENDPOINT;
+    let score, justification;
     if (!endpoint) {
-      return res.status(500).json({ error: 'LLM_ENDPOINT is not configured on the server' });
+      // Heuristic fallback: quick keyword-overlap scoring (0-100)
+      const jd = (jobDescription || '').toLowerCase();
+      const resumeLower = (resumeText || '').toLowerCase();
+      const keywords = Array.from(new Set(jd
+        .split(/[^a-z0-9+#.]+/i)
+        .filter(Boolean)
+        .filter(w => w.length >= 3)));
+      const hits = keywords.filter(k => resumeLower.includes(k));
+      const ratio = keywords.length ? hits.length / keywords.length : 0;
+      score = Math.round(ratio * 100);
+      justification = `Heuristic score based on keyword overlap: ${hits.length}/${keywords.length} matches.`;
+    } else {
+      const response = await axios.post(endpoint, {
+        resumeText,
+        jobDescription
+      }, {
+        headers: { 'Content-Type': 'application/json' },
+        timeout: 30000
+      });
+      ({ score, justification } = response?.data || {});
     }
 
-    const response = await axios.post(endpoint, {
-      resumeText,
-      jobDescription
-    }, {
-      headers: { 'Content-Type': 'application/json' },
-      timeout: 30000
-    });
-
-    const { score, justification } = response?.data || {};
     if (typeof score !== 'number' || score < 0 || score > 100 || typeof justification !== 'string') {
       return res.status(502).json({ error: 'Invalid response from scoring service' });
     }

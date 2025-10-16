@@ -40,6 +40,69 @@ function extractSkills(text) {
   return [];
 }
 
+// Extract role/position from job description
+function extractRoleFromJobDescription(jobDescription) {
+  if (!jobDescription) return 'Not Specified';
+  
+  const jd = jobDescription.toLowerCase();
+  
+  // Common role patterns to look for
+  const rolePatterns = [
+    // Direct role patterns
+    /(?:job title|position|role)\s*:?\s*([^\n.]{5,50})/i,
+    /(?:hiring|looking) for\s+(?:a\s+)?([^\n.]{5,50}?)\s+(?:to|who)/i,
+    /we are seeking\s+(?:a\s+)?([^\n.]{5,50})/i,
+    /^([^\n.]{5,50}?)\s*(?:-|\||job|position|role)/i,
+    
+    // Common job titles - more comprehensive
+    /(software engineer|developer|programmer|analyst|manager|consultant|specialist|coordinator|assistant|executive|director|lead|senior|junior|intern|associate|architect|designer|data scientist|product manager|project manager|business analyst|qa engineer|devops engineer|full stack|frontend|backend|ui\/ux|marketing|sales|hr|finance|operations|customer service)/i
+  ];
+  
+  // Try to find role using patterns
+  for (const pattern of rolePatterns) {
+    const match = jobDescription.match(pattern);
+    if (match && match[1]) {
+      let role = match[1].trim();
+      // Clean up the extracted role
+      role = role.replace(/[^a-zA-Z0-9\s\/\-]/g, '').trim();
+      if (role.length >= 5 && role.length <= 50) {
+        // Capitalize properly
+        return role.split(' ')
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+          .join(' ');
+      }
+    }
+  }
+  
+  // Fallback: Look for common role keywords in any position
+  const commonRoles = [
+    'Software Engineer', 'Software Developer', 'Full Stack Developer', 
+    'Frontend Developer', 'Backend Developer', 'Data Scientist', 
+    'Product Manager', 'Project Manager', 'Business Analyst', 
+    'DevOps Engineer', 'QA Engineer', 'UI/UX Designer',
+    'Marketing Manager', 'Sales Executive', 'HR Manager',
+    'Finance Analyst', 'Operations Manager', 'Customer Service',
+    'Research Analyst', 'Technical Writer', 'System Administrator'
+  ];
+  
+  for (const role of commonRoles) {
+    if (jd.includes(role.toLowerCase())) {
+      return role;
+    }
+  }
+  
+  // Final fallback: Try to extract first meaningful line or phrase
+  const lines = jobDescription.split('\n').map(l => l.trim()).filter(Boolean);
+  if (lines.length > 0) {
+    const firstLine = lines[0];
+    if (firstLine.length >= 10 && firstLine.length <= 100) {
+      return firstLine.split(' ').slice(0, 8).join(' '); // First 8 words max
+    }
+  }
+  
+  return 'General Position';
+}
+
 // Accepts a PDF upload, extracts text, derives basic fields, and stores a Resume
 export async function uploadResume(req, res) {
   try {
@@ -460,8 +523,12 @@ Return your response in JSON format:
       return res.status(502).json({ error: 'Invalid response from scoring service' });
     }
 
+    // Extract role from job description
+    const roleApplied = extractRoleFromJobDescription(jobDescription);
+
     resume.matchScore = score;
     resume.justification = `${justification}${source ? ` (source: ${source})` : ''}`;
+    resume.roleApplied = roleApplied;
     await resume.save();
 
     return res.status(200).json(resume);

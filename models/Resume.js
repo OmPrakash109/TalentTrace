@@ -13,6 +13,7 @@ const ResumeSchema = new mongoose.Schema(
     education: { type: String, required: false },
     pdfText: { type: String, required: false },
     fileName: { type: String, required: true },
+    roleApplied: { type: String, required: false }, // Role extracted from job description
     matchScore: { type: Number, required: false, min: 0, max: 100 },
     justification: { type: String, required: false },
     uploadDate: { type: Date, required: true, default: Date.now }

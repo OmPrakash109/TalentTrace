@@ -62,7 +62,7 @@ async function fetchResumes() {
         <td>${truncate(r.candidateName, 48) || '<span class="text-muted">—</span>'}</td>
         <td>${r.email || '<span class="text-muted">—</span>'}</td>
         <td>${r.phone || '<span class="text-muted">—</span>'}</td>
-        <td>${(r.skills || []).slice(0, 5).join(', ')}</td>
+        <td>${r.roleApplied || '<span class="text-muted">—</span>'}</td>
         <td class="text-end">${r.matchScore ?? '<span class="text-muted">—</span>'}</td>
         <td class="text-end">
           <button class="btn btn-sm btn-outline-danger" data-del="${r._id}"><i class="fa-solid fa-trash"></i></button>
@@ -79,12 +79,12 @@ async function fetchResumes() {
         <td>${truncate(r.candidateName, 48) || '<span class="text-muted">—</span>'}</td>
         <td>${r.email || '<span class="text-muted">—</span>'}</td>
         <td>${r.phone || '<span class="text-muted">—</span>'}</td>
-        <td>${(r.skills || []).slice(0, 5).join(', ')}</td>
+        <td>${r.roleApplied || '<span class="text-muted">—</span>'}</td>
         <td class="text-end fw-semibold">${r.matchScore ?? ''}</td>`;
       el.shortlistedTableBody.appendChild(tr);
     }
 
-    el.allCount.textContent = `${all.length} resumes`;
+    el.allCount.textContent = `${all.length} candidate${all.length !== 1 ? 's' : ''}`;
     el.shortlistedCount.textContent = `${shortlisted.length} shortlisted`;
   } catch (err) {
     el.allTableBody.innerHTML = `<tr><td colspan="6" class="text-danger">${err.message}</td></tr>`;
@@ -103,6 +103,15 @@ async function uploadResume(e) {
     const data = await fetchJSON(`${API_URL}/upload-resume`, { method: 'POST', body: fd });
     el.uploadResult.innerHTML = `<div class="alert alert-success">Uploaded. ID: ${data.id}</div>`;
     el.uploadForm.reset();
+    
+    // Reset file upload display
+    const placeholder = document.getElementById('upload-placeholder');
+    const fileSelected = document.getElementById('file-selected');
+    if (placeholder && fileSelected) {
+      placeholder.classList.remove('d-none');
+      fileSelected.classList.add('d-none');
+    }
+    
     await fetchResumes();
   } catch (err) {
     el.uploadResult.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
@@ -137,20 +146,98 @@ async function scoreResume() {
       .replace(/\n/g, '<br>')   // Line breaks
       .replace(/<br><br>/g, '<br><br>');  // Preserve double line breaks
     
+    // Create score badge with color coding
+    let scoreBadgeClass = 'bg-danger';
+    let scoreLabel = 'Poor Match';
+    if (score >= 85) {
+      scoreBadgeClass = 'bg-success';
+      scoreLabel = 'Excellent';
+    } else if (score >= 75) {
+      scoreBadgeClass = 'bg-primary';
+      scoreLabel = 'Very Good';
+    } else if (score >= 65) {
+      scoreBadgeClass = 'bg-info';
+      scoreLabel = 'Good';
+    } else if (score >= 50) {
+      scoreBadgeClass = 'bg-warning text-dark';
+      scoreLabel = 'Fair';
+    }
+    
+    // Show the analysis results section
+    document.getElementById('analysis-results-section').style.display = 'block';
+    
+    // Smooth scroll to results
+    setTimeout(() => {
+      document.getElementById('analysis-results-section').scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'start' 
+      });
+    }, 100);
+    
     el.scoreResult.innerHTML = `
-      <div class="alert alert-success">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <h6 class="mb-0">AI Analysis Results</h6>
-          <span class="badge bg-primary fs-6">Score: ${score}</span>
+      <div class="card card-modern shadow-lg mt-4 fade-in">
+        <div class="card-header bg-gradient text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h5 class="mb-0"><i class="fa-solid fa-robot me-2"></i>AI Analysis Complete</h5>
+              <small class="text-white-75">Powered by Gemini 2.5 Flash</small>
+            </div>
+            <div class="text-end">
+              <div class="badge ${scoreBadgeClass} px-3 py-2 fs-6 mb-1">
+                ${score}/100
+              </div>
+              <div class="small text-white-75">${scoreLabel} Match</div>
+            </div>
+          </div>
         </div>
-        <div class="analysis-content" style="font-size: 0.9em; line-height: 1.5;">
-          ${formattedJustification}
+        <div class="card-body p-4">
+          <div class="analysis-content">
+            ${formattedJustification}
+          </div>
+          <div class="mt-4 pt-3 border-top">
+            <div class="row text-center">
+              <div class="col-4">
+                <div class="text-muted small mb-1">Analysis Time</div>
+                <div class="fw-semibold">< 3 seconds</div>
+              </div>
+              <div class="col-4">
+                <div class="text-muted small mb-1">AI Model</div>
+                <div class="fw-semibold">Gemini 2.5</div>
+              </div>
+              <div class="col-4">
+                <div class="text-muted small mb-1">Match Score</div>
+                <div class="fw-semibold text-primary">${score}%</div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     `;
     await fetchResumes();
   } catch (err) {
-    el.scoreResult.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
+    // Show the analysis results section even for errors
+    document.getElementById('analysis-results-section').style.display = 'block';
+    el.scoreResult.innerHTML = `
+      <div class="card card-modern shadow-lg fade-in">
+        <div class="card-header bg-danger text-white">
+          <h5 class="mb-0"><i class="fa-solid fa-exclamation-triangle me-2"></i>Analysis Error</h5>
+          <small class="text-white-75">Something went wrong</small>
+        </div>
+        <div class="card-body">
+          <div class="alert alert-danger mb-0">
+            <i class="fa-solid fa-exclamation-circle me-2"></i>
+            ${err.message}
+          </div>
+        </div>
+      </div>
+    `;
+    // Scroll to error
+    setTimeout(() => {
+      document.getElementById('analysis-results-section').scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'start' 
+      });
+    }, 100);
   }
   finally {
     document.getElementById('score-spinner')?.classList.add('d-none');
@@ -166,10 +253,44 @@ async function deleteResume(id) {
   }
 }
 
+function hideAnalysisResults() {
+  document.getElementById('analysis-results-section').style.display = 'none';
+  el.scoreResult.innerHTML = '';
+}
+
+// File selection handler
+el.uploadFile?.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  const placeholder = document.getElementById('upload-placeholder');
+  const fileSelected = document.getElementById('file-selected');
+  const selectedFilename = document.getElementById('selected-filename');
+  
+  if (file) {
+    // Show selected file display
+    placeholder.classList.add('d-none');
+    fileSelected.classList.remove('d-none');
+    selectedFilename.textContent = file.name;
+  } else {
+    // Show placeholder
+    placeholder.classList.remove('d-none');
+    fileSelected.classList.add('d-none');
+  }
+});
+
 // Event bindings
 el.uploadForm?.addEventListener('submit', uploadResume);
 el.scoreBtn?.addEventListener('click', scoreResume);
-el.refreshBtn?.addEventListener('click', fetchResumes);
+el.refreshBtn?.addEventListener('click', () => {
+  fetchResumes();
+  hideAnalysisResults();
+  // Reset file upload display
+  const placeholder = document.getElementById('upload-placeholder');
+  const fileSelected = document.getElementById('file-selected');
+  if (placeholder && fileSelected) {
+    placeholder.classList.remove('d-none');
+    fileSelected.classList.add('d-none');
+  }
+});
 el.allTableBody?.addEventListener('click', (e) => {
   const btn = e.target.closest('button[data-del]');
   if (btn) deleteResume(btn.getAttribute('data-del'));

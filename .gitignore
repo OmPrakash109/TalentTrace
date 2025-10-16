@@ -47,3 +47,6 @@ build/
 
 # Misc
 *.log
+
+# AI Assistant files
+WARP.md

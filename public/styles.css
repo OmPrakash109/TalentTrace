@@ -9,6 +9,21 @@ body.tt-bg { background: radial-gradient(1200px 600px at 100% -100%, #e6f0ff 10%
 .btn-primary:hover { filter: brightness(0.95); }
 .btn-success { background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%); border: none; }
 .btn-success:hover { filter: brightness(0.95); }
+.analysis-content {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 8px;
+  padding: 1rem;
+  border-left: 4px solid #3b82f6;
+}
+.analysis-content strong {
+  color: #1e40af;
+  font-size: 1.05em;
+}
+.analysis-content br + strong {
+  margin-top: 0.75rem;
+  display: inline-block;
+}
 @media (max-width: 768px) {
   .table thead { display: none; }
   .table tr { display: block; margin-bottom: .75rem; }

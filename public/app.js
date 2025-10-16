@@ -57,7 +57,7 @@ async function fetchResumes() {
     el.allTableBody.innerHTML = '';
     for (const r of all) {
       const tr = document.createElement('tr');
-      if (typeof r.matchScore === 'number' && r.matchScore >= 7) tr.classList.add('row-shortlisted');
+      if (typeof r.matchScore === 'number' && r.matchScore >= 70) tr.classList.add('row-shortlisted');
       tr.innerHTML = `
         <td>${truncate(r.candidateName, 48) || '<span class="text-muted">—</span>'}</td>
         <td>${r.email || '<span class="text-muted">—</span>'}</td>
@@ -129,7 +129,25 @@ async function scoreResume() {
     });
     const score = data.matchScore ?? data.score;
     const just = data.justification || 'No justification provided.';
-    el.scoreResult.innerHTML = `<div class="alert alert-success"><div><strong>Score:</strong> ${score}</div><div class="mt-2">${just}</div></div>`;
+    
+    // Format justification with proper line breaks and styling
+    const formattedJustification = just
+      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')  // Bold formatting
+      .replace(/•/g, '&bull;')  // Bullet points
+      .replace(/\n/g, '<br>')   // Line breaks
+      .replace(/<br><br>/g, '<br><br>');  // Preserve double line breaks
+    
+    el.scoreResult.innerHTML = `
+      <div class="alert alert-success">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h6 class="mb-0">AI Analysis Results</h6>
+          <span class="badge bg-primary fs-6">Score: ${score}</span>
+        </div>
+        <div class="analysis-content" style="font-size: 0.9em; line-height: 1.5;">
+          ${formattedJustification}
+        </div>
+      </div>
+    `;
     await fetchResumes();
   } catch (err) {
     el.scoreResult.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;

@@ -1,0 +1,22 @@
+[
+  {
+    "title": "Senior Full-Stack Developer",
+    "description": "Senior Full-Stack Developer - 5+ Years Experience\n\nWe are seeking a Senior Full-Stack Developer with expertise in:\n- JavaScript/TypeScript and modern frameworks (React, Node.js)\n- Database technologies (MongoDB, PostgreSQL)\n- Cloud platforms (AWS, Docker, Kubernetes)\n- API development and microservices architecture\n- Bachelor's degree in Computer Science or equivalent experience\n\nResponsibilities include leading development projects, mentoring junior developers, and architecting scalable solutions.\n\nRequired Skills:\n- 5+ years of full-stack development experience\n- Proficiency in React and Node.js\n- Experience with MongoDB and SQL databases\n- Knowledge of cloud deployment (AWS/Azure)\n- Strong understanding of REST APIs and microservices\n- Experience with version control (Git)\n- Excellent problem-solving and communication skills"
+  },
+  {
+    "title": "Frontend React Developer",
+    "description": "Frontend React Developer - 3+ Years Experience\n\nWe are looking for a skilled React developer to join our frontend team:\n- 3+ years of React development experience\n- Proficiency in JavaScript, HTML5, and CSS3\n- Experience with state management (Redux, Context API)\n- Knowledge of modern build tools (Webpack, Vite)\n- Experience with responsive design and CSS frameworks\n- Familiarity with testing frameworks (Jest, Cypress)\n\nResponsibilities:\n- Develop and maintain React applications\n- Collaborate with UX/UI designers\n- Optimize applications for performance\n- Write clean, maintainable code\n- Participate in code reviews"
+  },
+  {
+    "title": "Backend Node.js Engineer",
+    "description": "Backend Node.js Engineer - 4+ Years Experience\n\nSeeking an experienced backend engineer for our API development team:\n- 4+ years of Node.js development experience\n- Strong knowledge of Express.js framework\n- Experience with MongoDB and Mongoose ODM\n- Understanding of RESTful API design principles\n- Knowledge of authentication and authorization\n- Experience with Docker and containerization\n- Familiarity with AWS services (EC2, S3, Lambda)\n\nKey Responsibilities:\n- Design and develop scalable APIs\n- Database design and optimization\n- Implement security best practices\n- Write comprehensive tests\n- Deploy and maintain production systems"
+  },
+  {
+    "title": "Data Scientist",
+    "description": "Data Scientist - Machine Learning Focus\n\nWe are seeking a Data Scientist with machine learning expertise:\n- Master's degree in Data Science, Statistics, or related field\n- 3+ years of experience in data science and machine learning\n- Proficiency in Python and data science libraries (pandas, numpy, scikit-learn)\n- Experience with machine learning frameworks (TensorFlow, PyTorch)\n- Knowledge of statistical analysis and data visualization\n- Experience with SQL and database management\n- Strong analytical and problem-solving skills\n\nResponsibilities:\n- Develop predictive models and algorithms\n- Analyze large datasets to extract insights\n- Create data visualizations and reports\n- Collaborate with engineering teams\n- Present findings to stakeholders"
+  },
+  {
+    "title": "DevOps Engineer",
+    "description": "DevOps Engineer - Cloud Infrastructure\n\nLooking for a DevOps engineer to manage our cloud infrastructure:\n- 4+ years of DevOps or infrastructure experience\n- Strong knowledge of AWS services (EC2, ECS, RDS, S3)\n- Experience with containerization (Docker, Kubernetes)\n- Proficiency in Infrastructure as Code (Terraform, CloudFormation)\n- Knowledge of CI/CD pipelines (Jenkins, GitHub Actions)\n- Experience with monitoring tools (CloudWatch, Prometheus)\n- Linux system administration skills\n\nKey Duties:\n- Design and maintain cloud infrastructure\n- Implement automated deployment pipelines\n- Monitor system performance and reliability\n- Ensure security best practices\n- Troubleshoot production issues"
+  }
+]

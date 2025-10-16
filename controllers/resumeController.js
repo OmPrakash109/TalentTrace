@@ -121,10 +121,89 @@ export async function scoreResume(req, res) {
     let score, justification;
     let source = 'unknown';
 
-    // Skip Gemini for now - use improved heuristic scoring directly
+    // Primary path: Google Gemini AI scoring
     const googleApiKey = process.env.GOOGLE_API_KEY;
     // eslint-disable-next-line no-console
-    console.log('Using improved heuristic scoring (Gemini API not accessible)');
+    console.log('Scoring attempt - Gemini API Key available:', !!googleApiKey);
+    
+    if (googleApiKey && (score == null || justification == null)) {
+      try {
+        // eslint-disable-next-line no-console
+        console.log('Attempting Gemini AI scoring...');
+        const genAI = new GoogleGenerativeAI(googleApiKey);
+        
+        // Use the stable Gemini 2.5 Flash model
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+        // eslint-disable-next-line no-console
+        console.log('Using Gemini model: gemini-2.5-flash');
+        
+        const systemPrompt = `You are an expert technical recruiter and hiring assistant. Your task is to accurately assess how well a candidate's resume matches a given job description.
+
+You must:
+1. Analyze technical skills alignment
+2. Evaluate experience level compatibility
+3. Consider educational background relevance
+4. Assess overall candidate-role fit
+
+Provide a numeric score from 0-100 and clear justification.`;
+        
+        const scoringPrompt = `${systemPrompt}
+
+Compare the following resume with this job description and rate the fit on a scale of 0-100 with detailed justification.
+
+RESUME:
+${resumeText}
+
+JOB DESCRIPTION:
+${jobDescription}
+
+Analyze the candidate based on:
+- Technical skills match (weight: 60%)
+- Experience level alignment (weight: 25%)
+- Educational qualifications (weight: 10%)
+- Additional factors (certifications, projects) (weight: 5%)
+
+Return your response in JSON format:
+{
+  "score": <number between 0-100>,
+  "justification": "<detailed explanation of scoring rationale>"
+}`;
+        
+        const result = await model.generateContent(scoringPrompt);
+        const response = await result.response;
+        const text = response.text();
+        
+        // eslint-disable-next-line no-console
+        console.log('Gemini raw response:', text.substring(0, 200) + '...');
+        
+        // Parse JSON response
+        try {
+          const jsonMatch = text.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            const parsedResponse = JSON.parse(jsonMatch[0]);
+            if (typeof parsedResponse.score === 'number' && typeof parsedResponse.justification === 'string') {
+              score = parsedResponse.score;
+              justification = parsedResponse.justification;
+              source = 'gemini';
+              // eslint-disable-next-line no-console
+              console.log('Gemini AI scoring successful:', { score, source });
+            }
+          }
+        } catch (parseErr) {
+          // eslint-disable-next-line no-console
+          console.warn('Failed to parse Gemini response JSON:', parseErr?.message);
+        }
+      } catch (geminiErr) {
+        // eslint-disable-next-line no-console
+        console.error('Gemini AI scoring failed:', {
+          message: geminiErr?.message,
+          status: geminiErr?.status,
+          error: geminiErr
+        });
+        // eslint-disable-next-line no-console
+        console.log('Falling back to enhanced heuristic scoring');
+      }
+    }
 
     // Secondary path: external endpoint if configured
     if ((score == null || justification == null) && endpoint) {
@@ -140,49 +219,197 @@ export async function scoreResume(req, res) {
       }
     }
 
-    // Final fallback: improved heuristic scoring
+    // Final fallback: enhanced intelligent heuristic scoring
     if (score == null || justification == null) {
       const jd = (jobDescription || '').toLowerCase();
       const resumeLower = (resumeText || '').toLowerCase();
       
-      // Extract key skills/technologies from JD
-      const techKeywords = ['javascript', 'python', 'java', 'react', 'node', 'mongodb', 'sql', 'aws', 'azure', 'docker', 'kubernetes', 'git', 'html', 'css', 'express', 'angular', 'vue', 'typescript', 'php', 'c++', 'c#', '.net', 'spring', 'django', 'flask', 'mysql', 'postgresql', 'redis', 'elasticsearch', 'kafka', 'microservices', 'api', 'rest', 'graphql', 'machine learning', 'ai', 'data science', 'analytics', 'cybersecurity', 'automation', 'cloud', 'devops', 'agile', 'scrum'];
+      // Comprehensive skill categories with better matching patterns
+      const skillCategories = {
+        programming: ['java', 'python', 'javascript', 'typescript', 'c++', 'c#', 'programming', 'coding', 'development'],
+        frontend: ['react', 'reactjs', 'angular', 'vue', 'javascript', 'typescript', 'html', 'html5', 'css', 'css3', 'sass', 'bootstrap', 'tailwind', 'next.js', 'nextjs', 'spa'],
+        backend: ['node', 'nodejs', 'node.js', 'express', 'expressjs', 'spring boot', 'spring', 'python', 'django', 'flask', 'java', 'api', 'rest api', 'microservices'],
+        database: ['mongodb', 'mysql', 'postgresql', 'sql', 'nosql', 'database', 'redis', 'elasticsearch', 'querying', 'db'],
+        cloud: ['aws', 'azure', 'gcp', 'google cloud', 'cloud', 'docker', 'kubernetes', 'lambda', 'ec2', 's3', 'rds', 'cloudformation', 'cloud platforms'],
+        devops: ['docker', 'kubernetes', 'jenkins', 'ci/cd', 'gitlab', 'github actions', 'terraform', 'ansible', 'deployment'],
+        mobile: ['react native', 'flutter', 'ios', 'android', 'swift', 'kotlin', 'mobile'],
+        data: ['data science', 'analytics', 'python', 'pandas', 'numpy', 'machine learning', 'ai', 'data analysis'],
+        testing: ['testing', 'jest', 'cypress', 'selenium', 'junit', 'pytest', 'test', 'qa'],
+        security: ['security', 'cybersecurity', 'jwt', 'authentication', 'authorization', 'bcrypt', 'ssl']
+      };
       
-      // Extract experience indicators
-      const expKeywords = ['senior', 'lead', 'principal', 'architect', 'manager', 'director', 'years', 'experience', 'expert', 'advanced', 'professional'];
+      const experienceLevels = {
+        senior: ['senior', 'lead', 'principal', 'architect', 'staff'],
+        management: ['manager', 'director', 'head', 'vp', 'cto'],
+        experience: ['years', 'experience', 'expertise', 'proficient', 'expert']
+      };
       
-      // Count matches
-      const techMatches = techKeywords.filter(tech => 
-        jd.includes(tech) && resumeLower.includes(tech)
-      ).length;
+      // Analyze skill matches by category
+      const skillAnalysis = {};
+      let totalSkillScore = 0;
+      let skillDetails = [];
       
-      const expMatches = expKeywords.filter(exp => 
-        jd.includes(exp) && resumeLower.includes(exp)
-      ).length;
-      
-      // Calculate score based on matches and resume quality indicators
-      let baseScore = 0;
-      
-      // Technical skills match (0-60 points)
-      const totalTechInJD = techKeywords.filter(tech => jd.includes(tech)).length;
-      if (totalTechInJD > 0) {
-        baseScore += Math.round((techMatches / totalTechInJD) * 60);
+      for (const [category, skills] of Object.entries(skillCategories)) {
+        const jdSkills = skills.filter(skill => jd.includes(skill));
+        const resumeSkills = skills.filter(skill => resumeLower.includes(skill));
+        const matches = jdSkills.filter(skill => resumeSkills.includes(skill));
+        
+        if (jdSkills.length > 0) {
+          const categoryScore = (matches.length / jdSkills.length) * 100;
+          skillAnalysis[category] = {
+            required: jdSkills,
+            found: matches,
+            score: categoryScore
+          };
+          totalSkillScore += categoryScore;
+          
+          if (matches.length > 0) {
+            skillDetails.push(`${category}: ${matches.length}/${jdSkills.length} skills matched (${matches.join(', ')})`);
+          }
+        }
       }
       
-      // Experience level match (0-25 points)
-      const totalExpInJD = expKeywords.filter(exp => jd.includes(exp)).length;
-      if (totalExpInJD > 0) {
-        baseScore += Math.round((expMatches / totalExpInJD) * 25);
+      // Experience level analysis
+      const expAnalysis = [];
+      let experienceScore = 0;
+      
+      // Extract years of experience
+      const yearsMatch = resumeText.match(/(\d+)\+?\s*years?\s*(of\s*)?(experience|exp)/gi);
+      const jdYearsMatch = jobDescription.match(/(\d+)\+?\s*years?/gi);
+      
+      if (yearsMatch && jdYearsMatch) {
+        const resumeYears = Math.max(...yearsMatch.map(match => parseInt(match.match(/\d+/)[0])));
+        const requiredYears = Math.max(...jdYearsMatch.map(match => parseInt(match.match(/\d+/)[0])));
+        
+        if (resumeYears >= requiredYears) {
+          experienceScore += 20;
+          expAnalysis.push(`Experience requirement met: ${resumeYears} years (required: ${requiredYears})`);
+        } else {
+          experienceScore += 10;
+          expAnalysis.push(`Experience gap: ${resumeYears} years (required: ${requiredYears})`);
+        }
       }
       
-      // Resume quality indicators (0-15 points)
-      if (resumeLower.includes('bachelor') || resumeLower.includes('master') || resumeLower.includes('degree')) baseScore += 5;
-      if (resumeLower.includes('project') || resumeLower.includes('portfolio')) baseScore += 5;
-      if (resumeLower.includes('certification') || resumeLower.includes('certified')) baseScore += 5;
+      // Seniority level analysis
+      const seniorityMatches = [];
+      for (const [level, keywords] of Object.entries(experienceLevels)) {
+        const jdKeywords = keywords.filter(kw => jd.includes(kw));
+        const resumeKeywords = keywords.filter(kw => resumeLower.includes(kw));
+        const matches = jdKeywords.filter(kw => resumeKeywords.includes(kw));
+        
+        if (matches.length > 0) {
+          seniorityMatches.push(`${level} level indicators: ${matches.join(', ')}`);
+          experienceScore += 5;
+        }
+      }
       
-      score = Math.min(baseScore, 100);
-      justification = `Heuristic analysis: ${techMatches}/${totalTechInJD} technical skills match, ${expMatches}/${totalExpInJD} experience indicators match. Resume shows ${baseScore >= 70 ? 'strong' : baseScore >= 40 ? 'moderate' : 'basic'} alignment with job requirements.`;
-      source = 'heuristic';
+      // Education and certifications
+      const qualifications = [];
+      let qualificationScore = 0;
+      
+      const educationKeywords = ['bachelor', 'master', 'phd', 'degree', 'university', 'college', 'bs', 'ms', 'mba'];
+      const certificationKeywords = ['certified', 'certification', 'certificate', 'aws certified', 'google certified', 'microsoft certified'];
+      
+      const eduMatches = educationKeywords.filter(edu => resumeLower.includes(edu));
+      const certMatches = certificationKeywords.filter(cert => resumeLower.includes(cert));
+      
+      if (eduMatches.length > 0) {
+        qualifications.push(`Education: ${eduMatches[0]} degree identified`);
+        qualificationScore += 5;
+      }
+      
+      if (certMatches.length > 0) {
+        qualifications.push(`Certifications: Professional certifications found`);
+        qualificationScore += 5;
+      }
+      
+      // Project and portfolio indicators
+      const portfolioKeywords = ['project', 'portfolio', 'github', 'developed', 'built', 'created', 'implemented'];
+      const portfolioMatches = portfolioKeywords.filter(kw => resumeLower.includes(kw));
+      
+      if (portfolioMatches.length >= 3) {
+        qualifications.push('Strong project portfolio demonstrated');
+        qualificationScore += 5;
+      }
+      
+      // Calculate final score with improved weighting
+      const avgSkillScore = Object.keys(skillAnalysis).length > 0 ? totalSkillScore / Object.keys(skillAnalysis).length : 0;
+      
+      // Bonus scoring for comprehensive skill coverage
+      let coverageBonus = 0;
+      const skillCategoriesFound = Object.keys(skillAnalysis).length;
+      if (skillCategoriesFound >= 4) coverageBonus += 10; // Multiple skill areas
+      if (skillCategoriesFound >= 6) coverageBonus += 5;  // Very comprehensive
+      
+      // Education bonus for exact degree match
+      let educationBonus = 0;
+      if (resumeLower.includes('b.tech') || resumeLower.includes('bachelor')) {
+        if (resumeLower.includes('computer science') || resumeLower.includes('information technology')) {
+          educationBonus += 10; // Perfect education match
+        }
+      }
+      
+      // Internship/experience relevance bonus
+      let relevanceBonus = 0;
+      if (resumeLower.includes('software engineer') || resumeLower.includes('developer') || resumeLower.includes('intern')) {
+        relevanceBonus += 10;
+      }
+      
+      // Calculate base score
+      const baseScore = (avgSkillScore * 0.5) + (experienceScore * 0.2) + (qualificationScore * 0.1);
+      
+      // Apply bonuses
+      score = Math.min(Math.round(baseScore + coverageBonus + educationBonus + relevanceBonus), 100);
+      
+      // Generate detailed justification
+      const analysisDetails = [];
+      
+      // Skills analysis
+      if (skillDetails.length > 0) {
+        analysisDetails.push(`**Technical Skills Analysis:**\n${skillDetails.map(detail => `• ${detail}`).join('\n')}`);
+      }
+      
+      // Experience analysis
+      if (expAnalysis.length > 0 || seniorityMatches.length > 0) {
+        const expDetails = [...expAnalysis, ...seniorityMatches];
+        analysisDetails.push(`**Experience Assessment:**\n${expDetails.map(detail => `• ${detail}`).join('\n')}`);
+      }
+      
+      // Qualifications analysis
+      if (qualifications.length > 0) {
+        analysisDetails.push(`**Qualifications:**\n${qualifications.map(qual => `• ${qual}`).join('\n')}`);
+      }
+      
+      // Bonus analysis
+      const bonuses = [];
+      if (coverageBonus > 0) bonuses.push(`Skill diversity bonus: +${coverageBonus} points`);
+      if (educationBonus > 0) bonuses.push(`Perfect education match: +${educationBonus} points`);
+      if (relevanceBonus > 0) bonuses.push(`Relevant experience: +${relevanceBonus} points`);
+      
+      if (bonuses.length > 0) {
+        analysisDetails.push(`**Additional Strengths:**\n${bonuses.map(bonus => `• ${bonus}`).join('\n')}`);
+      }
+      
+      // Overall assessment with more accurate thresholds
+      let overallAssessment = '';
+      if (score >= 85) {
+        overallAssessment = 'Outstanding candidate with exceptional alignment across all requirements. Highly recommended for immediate consideration.';
+      } else if (score >= 75) {
+        overallAssessment = 'Excellent match with strong alignment across technical skills and experience requirements.';
+      } else if (score >= 65) {
+        overallAssessment = 'Very good candidate match with most requirements met and strong potential.';
+      } else if (score >= 50) {
+        overallAssessment = 'Good candidate with solid foundation, some areas for development identified.';
+      } else if (score >= 35) {
+        overallAssessment = 'Moderate match with relevant experience but skill gaps that may require training.';
+      } else {
+        overallAssessment = 'Limited alignment with job requirements, significant skill and experience gaps.';
+      }
+      
+      analysisDetails.push(`**Overall Assessment:**\n${overallAssessment}`);
+      
+      justification = analysisDetails.join('\n\n');
+      source = 'enhanced-analysis';
     }
 
     if (typeof score !== 'number' || score < 0 || score > 100 || typeof justification !== 'string') {
@@ -221,10 +448,10 @@ export async function getResumeById(req, res) {
   }
 }
 
-// Return resumes above a threshold (>= 7)
+// Return resumes above a threshold (>= 70)
 export async function getShortlisted(_req, res) {
   try {
-    const items = await Resume.find({ matchScore: { $gte: 7 } }).sort({ matchScore: -1, createdAt: -1 });
+    const items = await Resume.find({ matchScore: { $gte: 70 } }).sort({ matchScore: -1, createdAt: -1 });
     return res.status(200).json(items);
   } catch (error) {
     return res.status(500).json({ error: 'Failed to fetch shortlisted resumes' });

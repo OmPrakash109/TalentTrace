@@ -137,19 +137,30 @@ export async function scoreResume(req, res) {
         // eslint-disable-next-line no-console
         console.log('Using Gemini model: gemini-2.5-flash');
         
-        const systemPrompt = `You are an expert technical recruiter and hiring assistant. Your task is to accurately assess how well a candidate's resume matches a given job description.
+        const systemPrompt = `You are an experienced professional recruiter with expertise across all industries - technical, non-technical, creative, business, healthcare, finance, education, and more. Your goal is to intelligently match candidates to roles using semantic understanding and contextual analysis.
 
-You must:
-1. Analyze technical skills alignment
-2. Evaluate experience level compatibility
-3. Consider educational background relevance
-4. Assess overall candidate-role fit
+UNIVERSAL RECRUITING APPROACH:
+- Analyze the job requirements and identify core competencies needed
+- Match candidate experience, skills, and achievements to role demands
+- Use semantic understanding - recognize transferable skills and relevant experience
+- Consider industry context (technical vs non-technical, senior vs junior, etc.)
+- Focus on practical ability to perform job duties regardless of industry
+- Value both hard skills (technical, certifications) and soft skills (leadership, communication)
+- Assess cultural fit, growth potential, and adaptability
 
-Provide a numeric score from 0-100 and clear justification.`;
+SCORING FRAMEWORK:
+- 90-95: Exceptional match - exceeds requirements with proven track record
+- 80-89: Excellent fit - meets all key requirements with strong relevant experience
+- 70-79: Good candidate - meets most requirements, minor gaps that can be filled
+- 60-69: Adequate match - basic requirements met, some development needed
+- 50-59: Weak fit - significant gaps in key requirements
+- Below 50: Poor match for this specific role
+
+Approach each evaluation with the mindset of a seasoned recruiter who understands diverse industries and can identify genuine talent and potential.`;
         
         const scoringPrompt = `${systemPrompt}
 
-Compare the following resume with this job description and rate the fit on a scale of 0-100 with detailed justification.
+Perform a comprehensive evaluation of this candidate against the job requirements using intelligent matching and semantic understanding.
 
 RESUME:
 ${resumeText}
@@ -157,16 +168,36 @@ ${resumeText}
 JOB DESCRIPTION:
 ${jobDescription}
 
-Analyze the candidate based on:
-- Technical skills match (weight: 60%)
-- Experience level alignment (weight: 25%)
-- Educational qualifications (weight: 10%)
-- Additional factors (certifications, projects) (weight: 5%)
+EVALUATION PROCESS:
+1. ANALYZE THE ROLE: What industry is this? What are the core requirements? What type of experience matters most?
+
+2. ASSESS CANDIDATE MATCH:
+   - Core Skills & Competencies: Do they have the essential abilities for this role?
+   - Relevant Experience: How does their background translate to this position?
+   - Industry Knowledge: Do they understand the domain/sector?
+   - Transferable Skills: What skills from other areas apply here?
+   - Educational Background: How relevant is their academic/certification background?
+   - Leadership & Soft Skills: Communication, teamwork, problem-solving abilities
+   - Growth Trajectory: Career progression and learning capability
+
+3. CONTEXTUAL UNDERSTANDING:
+   - Consider the seniority level required vs candidate's experience level
+   - Recognize equivalent experience from different industries
+   - Value diverse backgrounds that bring fresh perspectives
+   - Assess cultural and role-specific fit
+
+4. SEMANTIC MATCHING:
+   - Look beyond exact keyword matches
+   - Understand skill synonyms and related competencies
+   - Recognize relevant experience even if differently labeled
+   - Consider the full context of their achievements
+
+Provide a holistic assessment that any hiring manager would find valuable, regardless of industry.
 
 Return your response in JSON format:
 {
-  "score": <number between 0-100>,
-  "justification": "<detailed explanation of scoring rationale>"
+  "score": <score from 0-100 based on comprehensive role fit>,
+  "justification": "<detailed analysis covering skills match, experience relevance, potential, and overall fit for this specific role>"
 }`;
         
         const result = await model.generateContent(scoringPrompt);
@@ -224,18 +255,31 @@ Return your response in JSON format:
       const jd = (jobDescription || '').toLowerCase();
       const resumeLower = (resumeText || '').toLowerCase();
       
-      // Comprehensive skill categories with better matching patterns
+      // Universal skill and competency categories for all industries
       const skillCategories = {
-        programming: ['java', 'python', 'javascript', 'typescript', 'c++', 'c#', 'programming', 'coding', 'development'],
-        frontend: ['react', 'reactjs', 'angular', 'vue', 'javascript', 'typescript', 'html', 'html5', 'css', 'css3', 'sass', 'bootstrap', 'tailwind', 'next.js', 'nextjs', 'spa'],
-        backend: ['node', 'nodejs', 'node.js', 'express', 'expressjs', 'spring boot', 'spring', 'python', 'django', 'flask', 'java', 'api', 'rest api', 'microservices'],
-        database: ['mongodb', 'mysql', 'postgresql', 'sql', 'nosql', 'database', 'redis', 'elasticsearch', 'querying', 'db'],
-        cloud: ['aws', 'azure', 'gcp', 'google cloud', 'cloud', 'docker', 'kubernetes', 'lambda', 'ec2', 's3', 'rds', 'cloudformation', 'cloud platforms'],
-        devops: ['docker', 'kubernetes', 'jenkins', 'ci/cd', 'gitlab', 'github actions', 'terraform', 'ansible', 'deployment'],
-        mobile: ['react native', 'flutter', 'ios', 'android', 'swift', 'kotlin', 'mobile'],
-        data: ['data science', 'analytics', 'python', 'pandas', 'numpy', 'machine learning', 'ai', 'data analysis'],
-        testing: ['testing', 'jest', 'cypress', 'selenium', 'junit', 'pytest', 'test', 'qa'],
-        security: ['security', 'cybersecurity', 'jwt', 'authentication', 'authorization', 'bcrypt', 'ssl']
+        // Technical Skills
+        programming: ['java', 'python', 'javascript', 'typescript', 'c++', 'c#', 'programming', 'coding', 'development', 'software'],
+        web_development: ['react', 'angular', 'vue', 'html', 'css', 'javascript', 'frontend', 'backend', 'web', 'api'],
+        data_analytics: ['data', 'analytics', 'sql', 'python', 'excel', 'tableau', 'powerbi', 'statistics', 'analysis'],
+        cloud_tech: ['aws', 'azure', 'cloud', 'docker', 'kubernetes', 'devops'],
+        
+        // Business Skills
+        management: ['management', 'leadership', 'team lead', 'supervisor', 'manager', 'director', 'head'],
+        sales_marketing: ['sales', 'marketing', 'business development', 'customer', 'crm', 'lead generation'],
+        finance_accounting: ['finance', 'accounting', 'budgeting', 'financial analysis', 'bookkeeping', 'audit'],
+        operations: ['operations', 'process improvement', 'logistics', 'supply chain', 'project management'],
+        
+        // Communication & Soft Skills
+        communication: ['communication', 'presentation', 'writing', 'public speaking', 'interpersonal'],
+        project_management: ['project management', 'agile', 'scrum', 'planning', 'coordination'],
+        
+        // Industry-Specific
+        healthcare: ['healthcare', 'medical', 'patient care', 'clinical', 'nursing', 'doctor'],
+        education: ['teaching', 'education', 'training', 'curriculum', 'instruction', 'academic'],
+        legal: ['legal', 'law', 'compliance', 'regulatory', 'contracts', 'litigation'],
+        creative: ['design', 'creative', 'graphic design', 'content', 'branding', 'marketing'],
+        engineering: ['engineering', 'mechanical', 'electrical', 'civil', 'technical'],
+        research: ['research', 'analysis', 'investigation', 'methodology', 'publication']
       };
       
       const experienceLevels = {
@@ -390,20 +434,20 @@ Return your response in JSON format:
         analysisDetails.push(`**Additional Strengths:**\n${bonuses.map(bonus => `• ${bonus}`).join('\n')}`);
       }
       
-      // Overall assessment with more accurate thresholds
+      // Universal assessment framework for all industries
       let overallAssessment = '';
       if (score >= 85) {
-        overallAssessment = 'Outstanding candidate with exceptional alignment across all requirements. Highly recommended for immediate consideration.';
+        overallAssessment = 'Outstanding candidate with exceptional qualifications and strong alignment with role requirements. Highly recommended.';
       } else if (score >= 75) {
-        overallAssessment = 'Excellent match with strong alignment across technical skills and experience requirements.';
+        overallAssessment = 'Excellent candidate with strong relevant experience and skills that match well with the position.';
       } else if (score >= 65) {
-        overallAssessment = 'Very good candidate match with most requirements met and strong potential.';
-      } else if (score >= 50) {
-        overallAssessment = 'Good candidate with solid foundation, some areas for development identified.';
-      } else if (score >= 35) {
-        overallAssessment = 'Moderate match with relevant experience but skill gaps that may require training.';
+        overallAssessment = 'Good candidate with solid qualifications and most requirements met. Shows strong potential for success.';
+      } else if (score >= 55) {
+        overallAssessment = 'Adequate candidate with basic requirements met. Some development areas identified but good foundation.';
+      } else if (score >= 40) {
+        overallAssessment = 'Moderate fit with some relevant experience but significant gaps in key requirements.';
       } else {
-        overallAssessment = 'Limited alignment with job requirements, significant skill and experience gaps.';
+        overallAssessment = 'Limited alignment with role requirements. Major skill and experience gaps identified.';
       }
       
       analysisDetails.push(`**Overall Assessment:**\n${overallAssessment}`);
